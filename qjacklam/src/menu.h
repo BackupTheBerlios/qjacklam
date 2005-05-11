@@ -1,0 +1,5 @@
+enum  {
+  emPort,
+  emOutput,
+  emInput
+};

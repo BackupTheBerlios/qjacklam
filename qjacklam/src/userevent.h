@@ -1,0 +1,5 @@
+enum  {
+  eeLatencyValueUnavailable,
+  eeLatencyValue,
+  eeGraphOrderChanged
+};
