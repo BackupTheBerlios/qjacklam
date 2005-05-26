@@ -175,7 +175,7 @@ class LatencyMeter {
   }
 
 public:
-  void receive(long numSampsToProcess, int sampleRate, float *indata)
+  void receive(long numSampsToProcess, int sampleRate __attribute__ ((unused)), float *indata)
   {
     if (Triggered) {
       jack_nframes_t T = thread_info_i->LastFrameTime();

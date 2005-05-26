@@ -6,7 +6,8 @@
 TARGET=../bin/qjacklam
 TEMPLATE = app
 LANGUAGE = C++
-CONFIG += debug thread qt
+# CONFIG += debug thread qt
+CONFIG += release thread qt
 LIBS += -ljack
 SOURCES += qlam.cpp \
            measure.cpp \
