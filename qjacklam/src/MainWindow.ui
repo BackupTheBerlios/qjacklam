@@ -8,8 +8,8 @@
         <rect>
             <x>0</x>
             <y>0</y>
-            <width>374</width>
-            <height>172</height>
+            <width>344</width>
+            <height>140</height>
         </rect>
     </property>
     <property name="sizePolicy">
@@ -23,72 +23,36 @@
     <property name="minimumSize">
         <size>
             <width>206</width>
-            <height>172</height>
+            <height>140</height>
         </size>
     </property>
     <property name="caption">
         <string>qjacktuner</string>
     </property>
-    <grid>
+    <widget class="QLabel">
         <property name="name">
-            <cstring>unnamed</cstring>
+            <cstring>textLabel1</cstring>
         </property>
-        <widget class="QSlider" row="0" column="0">
-            <property name="name">
-                <cstring>slider1</cstring>
-            </property>
-            <property name="sizePolicy">
-                <sizepolicy>
-                    <hsizetype>1</hsizetype>
-                    <vsizetype>0</vsizetype>
-                    <horstretch>0</horstretch>
-                    <verstretch>0</verstretch>
-                </sizepolicy>
-            </property>
-            <property name="paletteForegroundColor">
-                <color>
-                    <red>0</red>
-                    <green>0</green>
-                    <blue>0</blue>
-                </color>
-            </property>
-            <property name="paletteBackgroundColor">
-                <color>
-                    <red>170</red>
-                    <green>255</green>
-                    <blue>0</blue>
-                </color>
-            </property>
-            <property name="maxValue">
-                <number>100</number>
-            </property>
-            <property name="orientation">
-                <enum>Horizontal</enum>
-            </property>
-            <property name="tickmarks">
-                <enum>Both</enum>
-            </property>
-            <property name="tickInterval">
-                <number>10</number>
-            </property>
-        </widget>
-        <widget class="QLabel" row="1" column="0">
-            <property name="name">
-                <cstring>textLabel1</cstring>
-            </property>
-            <property name="font">
-                <font>
-                    <pointsize>30</pointsize>
-                </font>
-            </property>
-            <property name="text">
-                <string>textLabel1</string>
-            </property>
-            <property name="alignment">
-                <set>AlignCenter</set>
-            </property>
-        </widget>
-    </grid>
+        <property name="geometry">
+            <rect>
+                <x>10</x>
+                <y>30</y>
+                <width>330</width>
+                <height>49</height>
+            </rect>
+        </property>
+        <property name="font">
+            <font>
+                <pointsize>30</pointsize>
+            </font>
+        </property>
+        <property name="text">
+            <string>textLabel1</string>
+        </property>
+        <property name="alignment">
+            <set>AlignCenter</set>
+        </property>
+    </widget>
 </widget>
 <menubar>
     <property name="name">

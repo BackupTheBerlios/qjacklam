@@ -32,11 +32,11 @@ static inline unsigned get_cycles (void)
 	return ret;
 }
 
-#define DEBUG(format,args...) \
+#define DEBUGp(format,args...) \
 	fprintf (stderr, PACKAGE ":%5d:%08x %s:%s:%d: " format "\n", getpid(), get_cycles(), __FILE__, __FUNCTION__, __LINE__ , ## args)
 #define DEBUGP(format,args...) \
 	fprintf (stderr, PACKAGE ":%5d:%08x %s:%s:%d: " format "\n", getpid(), get_cycles(), __FILE__, __PRETTY_FUNCTION__, __LINE__ , ## args)
 #else
-    #define DEBUG(format,args...)
+    #define DEBUGp(format,args...)
     #define DEBUGP(format,args...)
 #endif
