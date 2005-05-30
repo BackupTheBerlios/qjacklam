@@ -25,21 +25,9 @@
 ** init() function in place of a constructor, and a destroy() function in
 ** place of a destructor.
 *****************************************************************************/
-#include "jack.h"
 
 #include <iostream>
-
-
-
-
-
-
 using namespace std;
-
-
-
-
-
 
 
 void MainWindow::helpAbout()
@@ -47,95 +35,47 @@ void MainWindow::helpAbout()
     
 }
 
-void MainWindow::customEvent(QCustomEvent *E)
+/* void MainWindow::menubar_activated(int i) */
+/* { */
+/*     QString w = PortBase; */
+/*     w += ":"; */
+/*     w += IO->text(i); */
+/*     cout  << __FUNCTION__ << " "<< w << endl; */
+/*     jackConnect(w, outputActive()); */
+/*     //cout << name() << endl; */
+/* } */
+
+/* void MainWindow::menubar_highlighted( int i) */
+/* { */
+/*     cout << __FUNCTION__ << i << endl; */
+/*     if (emOutput == i) */
+/* 	fillDropdown(Output); */
+/*     else */
+/*     if (emInput == i) */
+/* 	fillDropdown(Input); */
+/*     else */
+/* 	if (IO->itemParameter(i)) */
+/* 	    PortBase = IO->text(i); */
+/* } */
+
+/* void MainWindow::fillDropdown(QPopupMenu *io) */
+/* { */
+/*     IO = io; */
+/*     IO->clear(); */
+/*     jackGetPorts(*IO, outputActive()); */
+/* } */
+
+/* bool MainWindow::outputActive() */
+/* { */
+/*     return IO == Output; */
+/* } */
+
+void MainWindow::table_clicked(int row, int col, int button, const QPoint & mousePos)
 {
-    switch (E->type() - QCustomEvent::User) {
-    case eeLatencyValueUnavailable: {
-      textLabel1->setText("?");
-	}break;
-	
-    case eeLatencyValue: {
-	    int frames = (int)E->data();
-	    textLabel1->setText(QString("%1 frames").arg(frames));
-	}break;
-
-    case eeGraphOrderChanged: {
-      const char ** O, **I;
-	    jackConnections(O, I);
-
-	    int i;
-	    QString CSO;	    	    
-	    if (O) {
-		for (i=0; O[i]; i++) {
-		    if (!CSO.isEmpty())
-			CSO += " + ";
-		    CSO += O[i];
-		}
-		free(O);
-	    }
-	    QString CSI;	    	    
-	    if (I) {
-		for (i=0; I[i]; i++) {
-		    if (!CSI.isEmpty())
-			CSI += " + ";
-		    CSI += I[i];
-		}
-		free(I);
-	    }
-	    QString Cap("qjacklam");
-	    if (!(CSO.isEmpty() && CSI.isEmpty())) {
-		Cap += " @";
-		if (!CSO.isEmpty())
-		  (Cap += " Output ") += CSO;
-		if (!CSI.isEmpty())
-		  (Cap += " Input ") += CSI;
-	    }
-	    setCaption(Cap);
-	}break;
-
-    }
+  //  cout << row << " " << col << " " << button << endl;
 }
 
 
 
 
 
-void MainWindow::menubar_activated(int i)
-{
-    QString w = PortBase;
-    w += ":";
-    w += IO->text(i);
-    cout  << __FUNCTION__ << " "<< w << endl;
-    jackConnect(w, outputActive());
-    //cout << name() << endl;
-}
-
-
-void MainWindow::menubar_highlighted( int i)
-{
-    cout << __FUNCTION__ << i << endl;
-    if (emOutput == i)
-	fillDropdown(Output);
-    else
-    if (emInput == i)
-	fillDropdown(Input);
-    else
-	if (IO->itemParameter(i))
-	    PortBase = IO->text(i);
-}
-
-
-void MainWindow::fillDropdown(QPopupMenu *io)
-{
-    IO = io;
-    IO->clear();
-    jackGetPorts(*IO, outputActive());
-}
-
-
-
-
-bool MainWindow::outputActive()
-{
-    return IO == Output;
-}

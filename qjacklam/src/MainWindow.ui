@@ -8,8 +8,8 @@
         <rect>
             <x>0</x>
             <y>0</y>
-            <width>344</width>
-            <height>140</height>
+            <width>424</width>
+            <height>264</height>
         </rect>
     </property>
     <property name="sizePolicy">
@@ -22,48 +22,58 @@
     </property>
     <property name="minimumSize">
         <size>
-            <width>206</width>
-            <height>140</height>
+            <width>180</width>
+            <height>147</height>
         </size>
     </property>
     <property name="caption">
-        <string>qjacktuner</string>
+        <string>qjackLAM</string>
     </property>
-    <widget class="QLabel">
+    <grid>
         <property name="name">
-            <cstring>textLabel1</cstring>
+            <cstring>unnamed</cstring>
         </property>
-        <property name="geometry">
-            <rect>
-                <x>10</x>
-                <y>30</y>
-                <width>330</width>
-                <height>49</height>
-            </rect>
-        </property>
-        <property name="font">
-            <font>
-                <pointsize>30</pointsize>
-            </font>
-        </property>
-        <property name="text">
-            <string>textLabel1</string>
-        </property>
-        <property name="alignment">
-            <set>AlignCenter</set>
-        </property>
-    </widget>
+        <widget class="QTable" row="1" column="0" rowspan="1" colspan="2">
+            <property name="name">
+                <cstring>table</cstring>
+            </property>
+            <property name="sizePolicy">
+                <sizepolicy>
+                    <hsizetype>7</hsizetype>
+                    <vsizetype>7</vsizetype>
+                    <horstretch>19</horstretch>
+                    <verstretch>0</verstretch>
+                </sizepolicy>
+            </property>
+            <property name="numRows">
+                <number>3</number>
+            </property>
+            <property name="numCols">
+                <number>3</number>
+            </property>
+        </widget>
+        <widget class="QPushButton" row="0" column="0">
+            <property name="name">
+                <cstring>ButtonSendAll</cstring>
+            </property>
+            <property name="text">
+                <string>All</string>
+            </property>
+        </widget>
+        <widget class="QCheckBox" row="0" column="1">
+            <property name="name">
+                <cstring>checkBoxRepeat</cstring>
+            </property>
+            <property name="text">
+                <string>Repeat</string>
+            </property>
+        </widget>
+    </grid>
 </widget>
 <menubar>
     <property name="name">
         <cstring>menubar</cstring>
     </property>
-    <item text="&amp;Output" name="Output">
-    </item>
-    <item text="&amp;Input" name="Input">
-        <separator/>
-        <separator/>
-    </item>
 </menubar>
 <toolbars>
 </toolbars>
@@ -91,21 +101,16 @@
         <slot>helpAbout()</slot>
     </connection>
     <connection>
-        <sender>menubar</sender>
-        <signal>activated(int)</signal>
+        <sender>table</sender>
+        <signal>clicked(int,int,int,const QPoint&amp;)</signal>
         <receiver>MainWindow</receiver>
-        <slot>menubar_activated(int)</slot>
-    </connection>
-    <connection>
-        <sender>menubar</sender>
-        <signal>highlighted(int)</signal>
-        <receiver>MainWindow</receiver>
-        <slot>menubar_highlighted(int)</slot>
+        <slot>table_clicked(int,int,int,const QPoint&amp;)</slot>
     </connection>
 </connections>
 <includes>
     <include location="local" impldecl="in declaration">menu.h</include>
-    <include location="local" impldecl="in declaration">userevent.h</include>
+    <include location="local" impldecl="in declaration">jack.h</include>
+    <include location="local" impldecl="in declaration">measure.h</include>
     <include location="local" impldecl="in implementation">MainWindow.ui.h</include>
 </includes>
 <variables>
@@ -114,13 +119,7 @@
 </variables>
 <slots>
     <slot>helpAbout()</slot>
-    <slot>customEvent( QCustomEvent * E )</slot>
-    <slot>menubar_activated( int i )</slot>
-    <slot>menubar_highlighted( int i )</slot>
+    <slot>table_clicked( int row, int col, int button, const QPoint &amp; mousePos )</slot>
 </slots>
-<functions>
-    <function access="private" specifier="non virtual">fillDropdown( QPopupMenu * io )</function>
-    <function access="private" specifier="non virtual" returnType="bool">outputActive()</function>
-</functions>
 <layoutdefaults spacing="6" margin="11"/>
 </UI>

@@ -42,8 +42,6 @@ class jackClient {
 
   static int SyncCallback(jack_transport_state_t state, jack_position_t *pos, void *arg);
 
-  void setup_ports();
-
   static void jack_shutdown(void *args __attribute__ ((unused))) {
     fprintf (stderr, "JACK shutdown\n");
     // exit (0);
@@ -53,14 +51,29 @@ class jackClient {
   static int GraphOrderCallback(void *arg);
 
 public:
-  jackClient(int n_i, int n_o)
+/*   jackClient(int n_i, int n_o) */
+/*     :client(NULL) */
+/*     ,channels_i(n_i) */
+/*     ,channels_o(n_o) */
+/*   { */
+/*   } */
+  jackClient()
     :client(NULL)
-    ,channels_i(n_i)
-    ,channels_o(n_o)
+    ,channels_i(0)
+    ,channels_o(0)
+    ,ports_i(NULL)
+    ,ports_o(NULL)
   {
   }
 
-  int jackUp(const char * name, JackProcessCallback process_callback, void *instance);
+  int Channels(bool out)
+    {
+      return out ? channels_o : channels_i;
+    }
+
+  void SetupPorts(int n_i, int n_o);
+
+  int jackUp(const char * name, JackProcessCallback process_callback, void *instance, bool allcallbacks = false);
 
   void jackDown();
 
@@ -68,17 +81,19 @@ public:
     return jack_get_ports(client, NULL, NULL, flags);
   }
 
-  jack_default_audio_sample_t *getBuffer(jack_nframes_t nframes, bool out) {
-    return (jack_default_audio_sample_t *)jack_port_get_buffer(out ? ports_o[0] : ports_i[0], nframes);
+  jack_default_audio_sample_t *getBuffer(jack_nframes_t nframes, bool out, int ch) {
+    if ((out ? channels_o : channels_i) <= ch)
+      return NULL;
+    return (jack_default_audio_sample_t *)jack_port_get_buffer(out ? ports_o[ch] : ports_i[ch], nframes);
   }
 
-  void Connect(const char *put, bool out) {
+  void Connect(const char *put, bool out, int ch = 0) {
     if (out) {
-      jack_port_disconnect(client, ports_o[0]);
-      jack_connect(client, jack_port_name(ports_o[0]), put);
+      jack_port_disconnect(client, ports_o[ch]);
+      jack_connect(client, jack_port_name(ports_o[ch]), put);
     } else {
-      jack_port_disconnect(client, ports_i[0]);
-      jack_connect(client, put, jack_port_name(ports_i[0]));
+      jack_port_disconnect(client, ports_i[ch]);
+      jack_connect(client, put, jack_port_name(ports_i[ch]));
     }
   }
 
@@ -91,7 +106,26 @@ public:
   jack_nframes_t LastFrameTime() {
     return jack_last_frame_time(client);
   }
+  int Deactivate() {
+    return jack_deactivate(client);
+  }
+  int UnregisterPorts() {
+    int error;
+    while (channels_i)
+      if (error = jack_port_unregister(client, ports_i[--channels_i]))
+	return error;
+    free(ports_i);
+    ports_i = NULL;
+    while (channels_o)
+      if (error = jack_port_unregister(client, ports_o[--channels_o]))
+	return error;
+    free(ports_o);
+    ports_o = NULL;
+    return 0;
+  }
+
+
 };
 
-extern jackClient *thread_info_o, *thread_info_i;
+extern jackClient *Sender, *Receiver;
 

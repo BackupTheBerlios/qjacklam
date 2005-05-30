@@ -23,18 +23,31 @@
 #include <math.h>
 #include <qapplication.h>
 #include "MainWindow.h"
-#include "jack.h"
+#include "userevent.h"
 
 extern MainWindow *PW;
+
+Measurement::Measurement(int _Points)
+  :E(NULL)
+    {
+      Points = _Points;
+      Point = (sPoints *)calloc(Points, sizeof(Point[0]));
+    }
+
+void Measurement::Return()
+{
+  //  std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ << " " << SendTime << std::endl;
+  E->setData(this);
+  QApplication::postEvent(PW, E);
+  E = NULL;
+}
 
 static const float PulsValue = 0.1;
 
 float Pulse[500];
 
-static float LastValue;
 
 
-static int Latency;
 static int PulseForRate;
 static int PulseLen;
 
@@ -69,203 +82,179 @@ static void initPulse(int sampleRate)
   PulseForRate = sampleRate;
 }
 
-
-// void MeasureLatency(long numSampsToProcess, int sampleRate, float *indata, float *outdata)
-// {
-//   static bool Triggered;
-//   static int MinSet, MaxSet;
-//   static float Min, Max;
-
-//   if (Triggered) {
-//     int s;
-//     for (s = 0; s < numSampsToProcess; s++) {
-//       float Value = indata[s];
-//       if (Value < Min) {
-// 	Min = Value;
-// 	MinSet = Samples + s;
-//       } else
-// 	if (Value > Max) {
-// 	  Max = Value;
-// 	  MaxSet = Samples + s;
-// 	} else
-// 	  if (MinSet && MaxSet) {
-// 	    Latency = (MinSet + MaxSet) / 2;
-// 	    QCustomEvent * E =  new QCustomEvent(QCustomEvent::User + eeLatencyValue);
-// 	    E->setData((void*)Latency);
-// 	    QApplication::postEvent(PW, E);
-
-// 	    //	    std::cout << Latency << std::endl;
-// 	    Triggered = false;
-// 	    break;
-// 	  }
-
-
-
-// //       if (LastValue < -PulsValue / 4  &&  Value > PulsValue / 4) {
-// // 	Latency = Samples + s;
-// // 	std::cout << Latency << std::endl;
-// // 	Triggered = false;
-// //       }
-// //       LastValue = Value;
-//     }
+class LatencyMeter {
+  int PulseAt;
+  Measurement *M;
+  int Send;
+//   static int ProcessCallback1Client(jack_nframes_t nframes, void *arg)
+//   {
+//     LatencyMeter *info = (LatencyMeter*) arg;
+//     info->receive(nframes, Sender->GetSampleRate(), Receiver->getBuffer(nframes, false));
+//     info->send(nframes, Sender->GetSampleRate(), Sender->getBuffer(nframes, true));
+//     return 0;
 //   }
 
-//   if (PulseForRate != sampleRate)
-//     initPulse(sampleRate);
-
-//   Samples += numSampsToProcess;
-//   static int PulseAt;
-//   int outSamplesSet = 0;
-//   if (PulseAt) {
-//       outSamplesSet = PulseLen - PulseAt;
-//       if (outSamplesSet > numSampsToProcess) {
-// 	outSamplesSet = numSampsToProcess;
-//       }
-//       memcpy(outdata, Pulse + PulseAt, outSamplesSet * sizeof(Pulse[0]));
-//       if ((PulseAt += outSamplesSet) >= PulseLen)
-// 	PulseAt = 0;
-//   } else
-//     if (Samples >= sampleRate) {
-//       outSamplesSet = PulseLen;
-//       if (outSamplesSet > numSampsToProcess) {
-// 	PulseAt = outSamplesSet = numSampsToProcess;
-//       }
-//       memcpy(outdata, Pulse, outSamplesSet * sizeof(Pulse[0]));
-//       Samples = numSampsToProcess - PulseLen / 2;
-//       LastValue = 0.0;
-//       if (Triggered) {
-// 	QCustomEvent * E =  new QCustomEvent(QCustomEvent::User + eeLatencyValueUnavailable);
-// 	QApplication::postEvent(PW, E);
-//       }
-//       Triggered = true;
-//       Min = -0.01;
-//       Max = 0.01;
-//       MinSet = MaxSet = 0;
-//     }
-//   memset(outdata + outSamplesSet, 0, sizeof(*outdata) * (numSampsToProcess - outSamplesSet));
-// }
-
-
-class LatencyMeter {
-  bool Triggered;
-  jack_nframes_t MinSet, MaxSet;
-  float Min, Max;
-  int PulseAt;
-  int Samples;
-  jack_nframes_t SendTime;
-
-  static int ProcessCallback1Client(jack_nframes_t nframes, void *arg)
-  {
-    LatencyMeter *info = (LatencyMeter*) arg;
-    info->receive(nframes, thread_info_o->GetSampleRate(), thread_info_i->getBuffer(nframes, false));
-    info->send(nframes, thread_info_o->GetSampleRate(), thread_info_o->getBuffer(nframes, true));
-    return 0;
-  }
   static int ProcessCallbackSend(jack_nframes_t nframes, void *arg)
   {
+    //    std::cout << __PRETTY_FUNCTION__ << nframes << std::endl;
     LatencyMeter *info = (LatencyMeter*) arg;
-    info->send(nframes, thread_info_o->GetSampleRate(), thread_info_o->getBuffer(nframes, true));
+    float *outdata = Sender->getBuffer(nframes, true, 0);
+    if (outdata)
+      info->send(nframes, Sender->GetSampleRate(), outdata);
     return 0;
   }
+
   static int ProcessCallbackReceive(jack_nframes_t nframes, void *arg)
   {
-    LatencyMeter *info = (LatencyMeter*) arg;
-    info->receive(nframes, thread_info_o->GetSampleRate(), thread_info_i->getBuffer(nframes, false));
+    LatencyMeter *lam = (LatencyMeter*) arg;
+    Measurement *M = lam->M;
+    if (M && !lam->Send) {
+      int i;
+      float *indata;
+      bool Complete = true;
+      jack_nframes_t T = Receiver->LastFrameTime();
+
+      for (i = 0; indata = Receiver->getBuffer(nframes, false, i); ++i) {
+	if (M->Points > i) {
+	  if (M->Point[i].receive(nframes, T, indata)) {
+	    Complete = false;
+	  }
+	}
+      }
+      if (Complete || T + PulseLen / 2 - M->SendTime >= Sender->GetSampleRate()) {
+// 	std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ << " " << Complete << " " << T << " "<< M->SendTime << std::endl;
+	lam->M = NULL;
+	M->Return();
+      }
+    }
     return 0;
   }
 
 public:
-  void receive(long numSampsToProcess, int sampleRate __attribute__ ((unused)), float *indata)
-  {
-    if (Triggered) {
-      jack_nframes_t T = thread_info_i->LastFrameTime();
-      int s;
-      for (s = 0; s < numSampsToProcess; s++) {
-	float Value = indata[s];
-	if (Value < Min) {
-	  Min = Value;
-	  MinSet = T + s;
-	} else
-	  if (Value > Max) {
-	    Max = Value;
-	    MaxSet = T + s;
-	  } else
-	    if (MinSet && MaxSet) {
-	      Latency = (MinSet + MaxSet) / 2 - SendTime;
-	      QCustomEvent * E =  new QCustomEvent(QCustomEvent::User + eeLatencyValue);
-	      E->setData((void*)Latency);
-	      QApplication::postEvent(PW, E);
-
-	    //	    std::cout << Latency << std::endl;
-	      Triggered = false;
-	      break;
-	    }
-	
-	
-	
-//       if (LastValue < -PulsValue / 4  &&  Value > PulsValue / 4) {
-// 	Latency = Samples + s;
-// 	std::cout << Latency << std::endl;
-// 	Triggered = false;
-//       }
-//       LastValue = Value;
-      }
-    }
-  }
 
   void send(long numSampsToProcess, int sampleRate, float *outdata)
   {
+    int outSamplesSet = 0;
     if (PulseForRate != sampleRate)
       initPulse(sampleRate);
-  
-    Samples += numSampsToProcess;
-    int outSamplesSet = 0;
-    if (PulseAt) {
-      outSamplesSet = PulseLen - PulseAt;
-      if (outSamplesSet > numSampsToProcess) {
-	outSamplesSet = numSampsToProcess;
-      }
-      memcpy(outdata, Pulse + PulseAt, outSamplesSet * sizeof(Pulse[0]));
-      if ((PulseAt += outSamplesSet) >= PulseLen)
-	PulseAt = 0;
-    } else
-      if (Samples >= sampleRate) {
-	outSamplesSet = PulseLen;
+
+    if (M) {
+      if (PulseAt) {
+	outSamplesSet = PulseLen - PulseAt;
 	if (outSamplesSet > numSampsToProcess) {
-	  PulseAt = outSamplesSet = numSampsToProcess;
+	  outSamplesSet = numSampsToProcess;
 	}
-	memcpy(outdata, Pulse, outSamplesSet * sizeof(Pulse[0]));
-	Samples = 0;
-	SendTime = thread_info_o->LastFrameTime() + PulseLen / 2;
-	LastValue = 0.0;
-	if (Triggered) {
-	  QCustomEvent * E =  new QCustomEvent(QCustomEvent::User + eeLatencyValueUnavailable);
-	  QApplication::postEvent(PW, E);
+	memcpy(outdata, Pulse + PulseAt, outSamplesSet * sizeof(Pulse[0]));
+	if ((PulseAt += outSamplesSet) >= PulseLen)
+	  PulseAt = 0;
+      } else
+	if (Send && Send-- <= 1) {
+	  Send = 0;
+	  outSamplesSet = PulseLen;
+	  if (outSamplesSet > numSampsToProcess) {
+	    PulseAt = outSamplesSet = numSampsToProcess;
+	  }
+	  memcpy(outdata, Pulse, outSamplesSet * sizeof(Pulse[0]));
+	  M->SendTime = Sender->LastFrameTime() + PulseLen / 2;
+	  int i;
+	  for (i = 0; i < M->Points; i++)
+	    M->Point[i].Trigger();
 	}
-	Triggered = true;
-	Min = -0.01;
-	Max = 0.01;
-	MinSet = MaxSet = 0;
-      }
+    }
     memset(outdata + outSamplesSet, 0, sizeof(*outdata) * (numSampsToProcess - outSamplesSet));
   }
 
-  int setup1Client() {
-    thread_info_o = thread_info_i = new jackClient(1, 1);
-    return thread_info_o->jackUp("lam", ProcessCallback1Client, this);
-  }
+//   int setup1Client() {
+//     thread_info_o = thread_info_i = new jackClient(1, 1);
+//     return thread_info_o->jackUp("lam", ProcessCallback1Client, this);
+//   }
 
   int setup2Clients() {
-    thread_info_o = new jackClient(0, 1);
-    thread_info_i = new jackClient(1, 0);
-    return thread_info_o->jackUp("lamS", ProcessCallbackSend, this) |
-      thread_info_i->jackUp("lamR", ProcessCallbackReceive, this);
+    Sender = new jackClient();
+    Receiver = new jackClient();
+    return Sender->jackUp("lamS", ProcessCallbackSend, this, true) |
+      Receiver->jackUp("lamR", ProcessCallbackReceive, this);
+  }
+  LatencyMeter()
+    :PulseAt(0)
+    ,M(NULL)
+    ,Send(0)
+  {}
+
+  void SetM(Measurement *_M) {
+    PulseAt = 0;
+    Send = 2;
+    M = _M;
   }
 };
 
 static LatencyMeter LAM;
 
+void Measurement::Arm(int _Row)
+{
+  Row = _Row;
+  E = new QCustomEvent(QCustomEvent::User + eeLatencyValue);
+  LAM.SetM(this);
+}
 
+bool Measurement::sPoints::receive(long numSampsToProcess, jack_nframes_t T, float *indata)
+{
+  if (Triggered) {
+    int s;
+    for (s = 0; s < numSampsToProcess; s++) {
+      float Value = indata[s];
+      if (Value < Min) {
+	Min = Value;
+	MinSet = T + s;
+      } else
+	if (Value > Max) {
+	  Max = Value;
+	  MaxSet = T + s;
+	} else
+	  if (MinSet && MaxSet) {
+	    /* 		Latency = (MinSet + MaxSet) / 2 - SendTime; */
+	    /* 		QCustomEvent * E =  new QCustomEvent(QCustomEvent::User + eeLatencyValue); */
+	    /* 		E->setData((void*)Latency); */
+	    /* 		QApplication::postEvent(PW, E); */
+
+	    //	    std::cout << Latency << std::endl;
+	    //	    std::cout << __LINE__ << __FUNCTION__ << std::endl;
+	    Triggered = false;
+	    break;
+	  }
+      //       if (LastValue < -PulsValue / 4  &&  Value > PulsValue / 4) {
+      // 	Latency = Samples + s;
+      // 	std::cout << Latency << std::endl;
+      // 	Triggered = false;
+      //       }
+      //       LastValue = Value;
+    }
+  }
+  //  std::cout <<  Triggered << __LINE__ << __FUNCTION__ << std::endl;
+  return Triggered;
+}
+
+void Measurement::sPoints::Trigger()
+{
+  Triggered = true;
+  //  std::cout <<  Triggered << __LINE__ << __FUNCTION__ << std::endl;
+  Min = -0.01;
+  Max = 0.01;
+  MinSet = MaxSet = 0;
+}
+void Measurement::Dump()
+{
+  std::cout << __PRETTY_FUNCTION__ << std::endl;
+  int i;
+  for (i = 0; i < Points; i++) {
+    sPoints &P = Point[i];
+    std::cout << P.Triggered;
+    if (!P.Triggered)
+      std::cout << "\t" << (P.MinSet + P.MaxSet) / 2 - SendTime;
+    std::cout << std::endl;
+  }
+    
+}
 // int jackUp()
 // {
 //   return LAM.setup1Client();
@@ -283,6 +272,6 @@ int jackUp()
 
 void jackDown()
 {
-  thread_info_i->jackDown();
-  thread_info_o->jackDown();
+  Receiver->jackDown();
+  Sender->jackDown();
 }

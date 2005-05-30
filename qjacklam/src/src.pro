@@ -12,10 +12,13 @@ LIBS += -ljack
 SOURCES += qlam.cpp \
            measure.cpp \
            jack.cpp \
+           MainWindowI.cpp \
            tools.cpp 
 HEADERS += jack.h \
            tools.h \
            MainWindow.ui.h \
+           MainWindowI.h \
            menu.h \
-           userevent.h
+           userevent.h \
+           measure.h
 FORMS += MainWindow.ui 

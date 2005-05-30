@@ -34,8 +34,8 @@
 #include <qapplication.h>
 
 #include "tools.h"
-#include "jack.h"
 #include "MainWindow.h"
+#include "userevent.h"
 
 extern MainWindow *PW;
 
@@ -85,13 +85,11 @@ int jackClient::SyncCallback(jack_transport_state_t state __attribute__ ((unused
 //   return 0;
 // }
 
-void jackClient::setup_ports()
+void jackClient::SetupPorts(int n_i, int n_o)
 {
-  int i;
-
   /* Allocate data structures that depend on the number of ports. */
-  ports_i = (jack_port_t **) calloc (channels_i, sizeof (jack_port_t *));
-  ports_o = (jack_port_t **) calloc (channels_o, sizeof (jack_port_t *));
+  ports_i = (jack_port_t **) calloc (n_i, sizeof (jack_port_t *));
+  ports_o = (jack_port_t **) calloc (n_o, sizeof (jack_port_t *));
 
   /* When JACK is running realtime, jack_activate() will have
    * called mlockall() to lock our pages into memory.  But, we
@@ -99,22 +97,22 @@ void jackClient::setup_ports()
    * process() starts using them.  Otherwise, a page fault could
    * create a delay that would force JACK to shut us down. */
 
-  for (i = 0; i < channels_i; i++) {
+  for (channels_i = 0; channels_i < n_i; channels_i++) {
     char name[64];
 
-    sprintf (name, "input%d", i+1);
-    if ((ports_i[i] = jack_port_register (client, name, JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0)) == 0) {
+    sprintf (name, "input%d", channels_i+1);
+    if ((ports_i[channels_i] = jack_port_register (client, name, JACK_DEFAULT_AUDIO_TYPE, JackPortIsInput, 0)) == 0) {
       fprintf (stderr, "cannot register input port \"%s\"!\n", name);
       jack_client_close (client);
       exit (1);
     }
   }
 
-  for (i = 0; i < channels_o; i++) {
+  for (channels_o = 0; channels_o < n_o; channels_o++) {
     char name[64];
 
-    sprintf (name, "output%d", i+1);
-    if ((ports_o[i] = jack_port_register (client, name, JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0)) == 0) {
+    sprintf (name, "output%d", channels_o+1);
+    if ((ports_o[channels_o] = jack_port_register (client, name, JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0)) == 0) {
       fprintf (stderr, "cannot register output port \"%s\"!\n", name);
       jack_client_close (client);
       exit (1);
@@ -143,8 +141,8 @@ int jackClient::GraphOrderCallback(void *arg __attribute__ ((unused)))
 }
 
 
-int jackClient::jackUp(const char * name, JackProcessCallback process_callback, void *instance) {
-  //  thread_info.channels = 1;
+int jackClient::jackUp(const char * name, JackProcessCallback process_callback, void *instance, bool allcallbacks)
+{
   opterr = 0;
 
   if ((client = jack_client_new (name)) == 0) {
@@ -153,20 +151,17 @@ int jackClient::jackUp(const char * name, JackProcessCallback process_callback, 
   }
   jack_set_sample_rate_callback(client, SampleRateCallback, this);
 
-
   {
-
     jack_on_shutdown (client, jack_shutdown, this);
-    jack_set_sync_callback(client, SyncCallback, this);
-
-    setup_ports ();
     jack_set_process_callback(client, process_callback, instance);
-    jack_set_graph_order_callback(client, GraphOrderCallback, this);
+    if (allcallbacks) {
+      jack_set_sync_callback(client, SyncCallback, this);
+      jack_set_graph_order_callback(client, GraphOrderCallback, this);
+    }
     if (jack_activate (client)) {
       fprintf (stderr, "cannot activate client\n");
       exit(1);
     }
-
   }
   return 0;
 }
@@ -186,7 +181,7 @@ void jackClient::jackDown()
 
 
 
-jackClient *thread_info_o, *thread_info_i;
+jackClient *Sender, *Receiver;
 
 
 
@@ -208,102 +203,102 @@ public:
 
 
 
-class Client
-{
-  typedef list<Client*> TClients;
-  static TClients Clients;
+// class Client
+// {
+//   typedef list<Client*> TClients;
+//   static TClients Clients;
 
-  typedef list<Port*> TPorts;
-  TPorts Ports;
-  string Name;
-  QPopupMenu *ChildM;
-  void addPort(const char * name)
-  {
-    Port *P;
-    Ports.push_back(P = new Port(name));
-    ChildM->setItemParameter(ChildM->insertItem(P->name()), 0);
-  }
+//   typedef list<Port*> TPorts;
+//   TPorts Ports;
+//   string Name;
+//   QPopupMenu *ChildM;
+//   void addPort(const char * name)
+//   {
+//     Port *P;
+//     Ports.push_back(P = new Port(name));
+//     ChildM->setItemParameter(ChildM->insertItem(P->name()), 0);
+//   }
 
-  Client(const string &name, QPopupMenu &m):Name(name) {
-    ChildM = new QPopupMenu;
-    m.setItemParameter(m.insertItem(Name, ChildM), 1);
-  }
+//   Client(const string &name, QPopupMenu &m):Name(name) {
+//     ChildM = new QPopupMenu;
+//     m.setItemParameter(m.insertItem(Name, ChildM), 1);
+//   }
 
-  ~Client()
-  {
-    //cout << __FUNCTION__ << " " << Name << endl;
-    TPorts::iterator p = Ports.begin();
-    while (p != Ports.end()) {
-      delete *p;
-      ++p;
-    }
-  }
-public:
-  static void addClientPort(const char * name, QPopupMenu &M)
-  {
-    string ClientName = name;
-    ClientName.resize(ClientName.find(':'));
-    //cout << __FUNCTION__ << " " << name << " @" << (void*)name << endl;
-    if (ClientName == "lam")
-      return;
-    TClients::iterator i = Clients.begin();
-    Client * C = NULL;
-    while (i != Clients.end()) {
-      if ((*i)->Name == ClientName) {
-	C = *i;
-	break;
-      }
-      ++i;
-    }
-    if (!C) {
-      C = new Client(ClientName, M);
-      Clients.push_back(C);
-    }
-    C->addPort(name);
-  }
+//   ~Client()
+//   {
+//     //cout << __FUNCTION__ << " " << Name << endl;
+//     TPorts::iterator p = Ports.begin();
+//     while (p != Ports.end()) {
+//       delete *p;
+//       ++p;
+//     }
+//   }
+// public:
+//   static void addClientPort(const char * name, QPopupMenu &M)
+//   {
+//     string ClientName = name;
+//     ClientName.resize(ClientName.find(':'));
+//     //cout << __FUNCTION__ << " " << name << " @" << (void*)name << endl;
+//     if (ClientName == "lam")
+//       return;
+//     TClients::iterator i = Clients.begin();
+//     Client * C = NULL;
+//     while (i != Clients.end()) {
+//       if ((*i)->Name == ClientName) {
+// 	C = *i;
+// 	break;
+//       }
+//       ++i;
+//     }
+//     if (!C) {
+//       C = new Client(ClientName, M);
+//       Clients.push_back(C);
+//     }
+//     C->addPort(name);
+//   }
 
-  static void clearAll()
-  {
-    TClients::iterator i = Clients.begin();
-    while (i != Clients.end()) {
-      //cout << __FUNCTION__ << " " << (*i)->Name << endl;
-      delete (*i);
-      i++;
-    }
+//   static void clearAll()
+//   {
+//     TClients::iterator i = Clients.begin();
+//     while (i != Clients.end()) {
+//       //cout << __FUNCTION__ << " " << (*i)->Name << endl;
+//       delete (*i);
+//       i++;
+//     }
 
-    Clients.clear();
-  }
-};
+//     Clients.clear();
+//   }
+// };
 
-Client::TClients Client::Clients;
+// Client::TClients Client::Clients;
 
-void jackGetPorts(QPopupMenu &M, bool out)
-{
-  jackClient * jc = out ? thread_info_o : thread_info_i;
-  const char **Ports = jc->getPorts(out ? JackPortIsInput : JackPortIsOutput);
-  int i = 0;
-  if (Ports) {
-    while (Ports[i]) {
-      //      cout << Ports[i] << endl;
-      Client::addClientPort(Ports[i], M);
-      ++i;
-    }
-    free(Ports);
-  }
+// void jackGetPorts(QPopupMenu &M, bool out)
+// {
+//   jackClient * jc = out ? Sender : Receiver;
+//   const char **Ports = jc->getPorts(out ? JackPortIsInput : JackPortIsOutput);
+//   int i = 0;
+//   if (Ports) {
+//     while (Ports[i]) {
+//       //      cout << Ports[i] << endl;
+//       Client::addClientPort(Ports[i], M);
+//       ++i;
+//     }
+//     free(Ports);
+//   }
 
-  Client::clearAll();
-}
+//   Client::clearAll();
+// }
 
-void jackConnect(const char *Input, bool out)
-{
-  jackClient * jc = out ? thread_info_o : thread_info_i;
-  jc->Connect(Input, out);
-}
+// void jackConnect(const char *Input, bool out)
+// {
+//   jackClient * jc = out ? Sender : Receiver;
+//   jc->Connect(Input, out);
+// }
 
-void jackConnections(const char **&O, const char **&I)
-{
-  O = thread_info_o->GetAllConnections(true);
-  I = thread_info_i->GetAllConnections(false);
-}
+// void jackConnections(const char **&O, const char **&I)
+// {
+//   O = Sender->GetAllConnections(true);
+//   I = Receiver->GetAllConnections(false);
+// }
 
 

@@ -25,17 +25,16 @@
 #include <stdlib.h>
 #include <qapplication.h>
 
-#include "MainWindow.h"
-#include "jack.h"
+#include "MainWindowI.h"
 
-MainWindow *PW;
+MainWindowI *PW;
 
 
 
 int main(int argc, char *argv[])
 {
     QApplication a( argc, argv );
-    MainWindow W;
+    MainWindowI W;
     PW = &W;
     W.show();
     a.setMainWidget(&W);
