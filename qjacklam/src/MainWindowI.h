@@ -6,6 +6,8 @@ class MainWindowI: public MainWindow {
     const char ** OutPorts;
     Measurement *M;
     struct Job *J;
+    int TimeOut;
+    bool HideSilent;
     void DoRow(int row);
  protected slots:
     void RowClicked(int row);
@@ -13,6 +15,8 @@ class MainWindowI: public MainWindow {
     bool PortsChanged(const char ** was, const char ** now);
     void SendAllClicked();
     void RepeatToggled(bool);
+    void TimeOutChanged(int);
+    void HideSilentToggled(bool);
  protected:
   virtual void customEvent( QCustomEvent * E );
 

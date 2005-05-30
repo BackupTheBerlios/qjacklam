@@ -27,8 +27,9 @@
 
 extern MainWindow *PW;
 
-Measurement::Measurement(int _Points)
+Measurement::Measurement(int _Points, int to)
   :E(NULL)
+   ,TimeOut(to)
     {
       Points = _Points;
       Point = (sPoints *)calloc(Points, sizeof(Point[0]));
@@ -121,7 +122,7 @@ class LatencyMeter {
 	  }
 	}
       }
-      if (Complete || T + PulseLen / 2 - M->SendTime >= Sender->GetSampleRate()) {
+      if (Complete || T + PulseLen / 2 - M->SendTime >= M->TimeOut) {
 // 	std::cout << __PRETTY_FUNCTION__ << " " << __LINE__ << " " << Complete << " " << T << " "<< M->SendTime << std::endl;
 	lam->M = NULL;
 	M->Return();

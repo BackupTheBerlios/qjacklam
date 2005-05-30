@@ -6,6 +6,7 @@ class Measurement {
 
   friend class LatencyMeter;
   jack_nframes_t SendTime;
+  jack_nframes_t TimeOut;
 
   struct sPoints {
     bool Triggered;
@@ -19,13 +20,19 @@ class Measurement {
   int Points;
 
  public:
+/*   void GetTimeOut() { */
+/*     return TimeOut; */
+/*   } */
+  void SetTimeOut(int to) {
+    TimeOut = to;
+  }
   bool Measuring() {
     return E;
   }
   int GetRow() {
     return Row;
   }
-  Measurement(int _Points);
+  Measurement(int _Points, int to);
   void Arm(int _Row);
   ~Measurement()
     {

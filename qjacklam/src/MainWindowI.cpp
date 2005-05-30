@@ -3,6 +3,7 @@
 #include <qlabel.h> 
 #include <qpushbutton.h> 
 #include <qcheckbox.h> 
+#include <qspinbox.h> 
 #include <iostream>
 #include "userevent.h"
 
@@ -22,14 +23,37 @@ MainWindowI::MainWindowI( QWidget* parent, const char* name, WFlags fl)
    ,OutPorts(NULL)
    ,M(NULL)
    ,J(NULL)
+   ,TimeOut(20000)
+   ,HideSilent(false)
 {
   connect(table->verticalHeader(), SIGNAL( clicked(int) ), this, SLOT( RowClicked(int) ));
   connect(ButtonSendAll, SIGNAL( clicked() ), this, SLOT( SendAllClicked() ));
   connect(checkBoxRepeat, SIGNAL( toggled(bool) ), this, SLOT( RepeatToggled(bool) ));
+  TimeOutSpinBox->setValue(TimeOut);
+  connect(TimeOutSpinBox, SIGNAL( valueChanged(int) ), this, SLOT( TimeOutChanged(int) ));
+  connect(checkBoxHideSilent, SIGNAL( toggled(bool) ), this, SLOT( HideSilentToggled(bool) ));
 }
 
 MainWindowI::~MainWindowI()
     {}
+
+void MainWindowI::HideSilentToggled(bool hs)
+{
+  HideSilent = hs;
+  if (!HideSilent) {
+    int i;
+    for (i = 0; i < table->numRows(); ++i)
+      table->showRow(i);
+    for (i = 0; i < table->numCols(); ++i)
+      table->showColumn(i);
+  }//  else {
+//     int i;
+//     for (i = 0; i < table->numRows(); ++i)
+//       table->hideRow(i);
+//     for (i = 0; i < table->numCols(); ++i)
+//       table->hideColumn(i);
+//   }
+}
 
 void  MainWindowI::RepeatToggled(bool Selected)
 {
@@ -81,6 +105,13 @@ void MainWindowI::RowClicked(int row)
   DoRow(row);
 }
 
+void MainWindowI::TimeOutChanged(int to)
+{
+  TimeOut = to;
+  if (M)
+    M->SetTimeOut(TimeOut);
+}
+
 void MainWindowI::customEvent(QCustomEvent *E)
 {
     switch (E->type() - QCustomEvent::User) {
@@ -98,16 +129,38 @@ void MainWindowI::customEvent(QCustomEvent *E)
 //       M->Dump();
       //      textLabel1->setText(QString("%1 frames").arg(frames));
       int col;
+      bool Show = false;
       for (col = 0; col < table->numCols(); ++col) {
 	int Frames = M->Frames(col);
 	QString S;
-	if (Frames >= 0)
+	if (Frames >= 0) {
+	  Show = true;
 	  S = QString("%1").arg(Frames);
-	else
+	} else
 	  S= "?";
 	table->setText(M->GetRow(), col, S);
       }
-
+      if (HideSilent) {
+	if (Show)
+	  table->showRow(M->GetRow());
+	else
+	  table->hideRow(M->GetRow());
+	for (col = 0; col < table->numCols(); ++col) {
+	  Show = false;
+	  for (int row = 0; row < table->numRows(); ++row) {
+	    string s = table->text(row, col);
+	    if (!(s == "?")) {
+	      Show = true;
+	      break;
+	    }
+	  }
+	  if (Show) {
+	    table->showColumn(col);
+	  } else {
+	    table->hideColumn(col);
+	  }
+	}
+      }
       if (J) {
 	if (!J->Repeat && (1 + J->Row) >= J->Rows) {
 	  delete J;
@@ -153,7 +206,7 @@ void MainWindowI::customEvent(QCustomEvent *E)
 	Receiver->SetupPorts(n_o, 0);
 	InPorts = Sender->getPorts(JackPortIsInput);
 	OutPorts = Sender->getPorts(JackPortIsOutput);
-	M = new Measurement(n_o);
+	M = new Measurement(n_o, TimeOut);
 	//	ButtonSendAll->setFixedSize(table->verticalHeader()->width()-1, table->horizontalHeader()->height());
       }
 //       {
