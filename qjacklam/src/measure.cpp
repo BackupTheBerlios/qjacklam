@@ -184,7 +184,7 @@ public:
 
   void SetM(Measurement *_M) {
     PulseAt = 0;
-    Send = 2;
+    Send = 4;
     M = _M;
   }
 };

@@ -89,11 +89,15 @@ public:
 
   void Connect(const char *put, bool out, int ch = 0) {
     if (out) {
-      jack_port_disconnect(client, ports_o[ch]);
-      jack_connect(client, jack_port_name(ports_o[ch]), put);
+      if (put)
+	jack_connect(client, jack_port_name(ports_o[ch]), put);
+      else
+	jack_port_disconnect(client, ports_o[ch]);
     } else {
-      jack_port_disconnect(client, ports_i[ch]);
-      jack_connect(client, put, jack_port_name(ports_i[ch]));
+      if (put)
+	jack_connect(client, put, jack_port_name(ports_i[ch]));
+      else
+	jack_port_disconnect(client, ports_i[ch]);
     }
   }
 

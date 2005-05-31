@@ -32,6 +32,7 @@ MainWindowI::MainWindowI( QWidget* parent, const char* name, WFlags fl)
   TimeOutSpinBox->setValue(TimeOut);
   connect(TimeOutSpinBox, SIGNAL( valueChanged(int) ), this, SLOT( TimeOutChanged(int) ));
   connect(checkBoxHideSilent, SIGNAL( toggled(bool) ), this, SLOT( HideSilentToggled(bool) ));
+  //  table->setSelectionMode(QTable::SingleRow);
 }
 
 MainWindowI::~MainWindowI()
@@ -76,20 +77,14 @@ void MainWindowI::SendAllClicked()
   if (M->Measuring())
     return;
   J->Row = 0;
-  table->selectRow(0);
   DoRow(0);
 }
 
 void MainWindowI::DoRow(int row)
 {
   //  cout << __PRETTY_FUNCTION__ << row <<endl;
-
+  table->selectRow(row);
   Sender->Connect(table->verticalHeader()->label(row), true);
-  int col;
-  for (col = 0; col < Receiver->Channels(false); ++col) {
-    Receiver->Connect(table->horizontalHeader()->label(col), false, col);
-    //    table->setText(row, col, "*");
-  }
   M->Arm(row);
 }
 
@@ -110,6 +105,7 @@ void MainWindowI::TimeOutChanged(int to)
   TimeOut = to;
   if (M)
     M->SetTimeOut(TimeOut);
+  TimeOutSpinBox->setLineStep(to / 4);
 }
 
 void MainWindowI::customEvent(QCustomEvent *E)
@@ -120,10 +116,12 @@ void MainWindowI::customEvent(QCustomEvent *E)
 //     }break;
     
     case eeLatencyValue: {
+      Sender->Connect(NULL, true);
       int sel = 0;
       while (sel < table->numSelections()) {
 	table->removeSelection (sel++);
       }
+      table->updateHeaderStates();
 //       cout << M << endl;
 //       cout << (void*)E->data() << endl;
 //       M->Dump();
@@ -155,6 +153,7 @@ void MainWindowI::customEvent(QCustomEvent *E)
 	    }
 	  }
 	  if (Show) {
+	    table->adjustColumn(col);
 	    table->showColumn(col);
 	  } else {
 	    table->hideColumn(col);
@@ -169,7 +168,6 @@ void MainWindowI::customEvent(QCustomEvent *E)
 	  if (J->Rows > 1)
 	    if (++J->Row >= J->Rows)
 	      J->Row = 0;
-	  table->selectRow(J->Row);
 	  DoRow(J->Row);
 	} 
       }
@@ -204,6 +202,10 @@ void MainWindowI::customEvent(QCustomEvent *E)
 	//	table->setColumnWidth ( 1, 0);
 	Sender->SetupPorts(0, 1);
 	Receiver->SetupPorts(n_o, 0);
+	int col;
+	for (col = 0; col < Receiver->Channels(false); ++col) {
+	  Receiver->Connect(table->horizontalHeader()->label(col), false, col);
+	}
 	InPorts = Sender->getPorts(JackPortIsInput);
 	OutPorts = Sender->getPorts(JackPortIsOutput);
 	M = new Measurement(n_o, TimeOut);
